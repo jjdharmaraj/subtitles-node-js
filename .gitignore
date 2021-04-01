@@ -124,3 +124,6 @@ dist
 env_variables.yaml
 TODO.md
 ffmpeg.exe
+*.mp4
+*.mp3
+*.wav
