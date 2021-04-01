@@ -96,6 +96,29 @@ function createRecognizer(audiofilename, audioLanguage) {
 }
 
 /**
+ * This parses the time from Azure into something more usable.
+ *
+ * https://www.w3.org/TR/webvtt1/
+ * https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
+ *
+ * @param {Number} nano Time sent from Azure
+ * @returns String to be used for the time in the file.
+ */
+function parseTime(nano) {
+  var hour = Math.floor(nano / 36000000000);
+  var temp = nano % 36000000000;
+  var minute = Math.floor(temp / 600000000);
+  var temp2 = temp % 600000000;
+  var second = Math.floor(temp2 / 10000000);
+  var mil = temp2 % 10000000;
+  hour = hour.toString();
+  minute = minute.toString();
+  second = second.toString();
+  mil = mil.toString().slice(0, 3); //cuts off insignificant digits
+  return `${hour}:${minute}:${second}.${mil}`;
+}
+
+/**
  * This handles setting up Azure, sending to Azure, and writing a VTT file.
  *
  * @param {String} filename The audio file to use for Azure AI.
@@ -127,7 +150,11 @@ function processFile(filename, outputFile, language) {
             } | Duration: ${e.result.duration} | Offset: ${e.result.offset}`
           );
 
-          outputStream.write(`${e.result.offset}, ${e.result.duration}`);
+          outputStream.write(
+            `${parseTime(e.result.offset)} --> ${parseTime(
+              e.result.offset + e.result.duration
+            )}\r\n`
+          );
           outputStream.write(`${e.result.text}\r\n\r\n`);
         }
       };
