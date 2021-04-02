@@ -3,5 +3,15 @@
   "audioFile": "output/yoga_test_audio.wav",
   "vttOutputFile": "output/transcript.vtt",
   "srtOutputFile": "output/transcript.srt",
-  "language": "en-US"
+  "language": "en-US",
+  "translate": {
+    "es": {
+      "vttOutputFile": "output/transcript_es.vtt",
+      "srtOutputFile": "output/transcript_es.srt"
+    },
+    "it": {
+      "vttOutputFile": "output/transcript_it.vtt",
+      "srtOutputFile": "output/transcript_it.srt"
+    }
+  }
 }

@@ -13,7 +13,14 @@ const subscriptionKey = process.env.AZURE_SPEECH_SUBSCRIPTION_KEY;
 //https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/regions
 const serviceRegion = process.env.AZURE_SPEECH_SERVICE_REGION;
 
+const rawConfig = fs.readFileSync("config.json");
+const config = JSON.parse(rawConfig);
+
 const subsrt = require("subsrt");
+
+//Used for Azure Translator
+const axios = require("axios").default;
+const { v4: uuidv4 } = require("uuid");
 
 /**
  * This sets the config up so that certain parameters are optional.
@@ -21,9 +28,6 @@ const subsrt = require("subsrt");
  * @returns Config to use with optional parameters filled.
  */
 function setupConfig() {
-  let rawConfig = fs.readFileSync("config.json");
-  let config = JSON.parse(rawConfig);
-
   //This is the video you want to use to generate subtitles for.
   let videoFile;
   //These are optional presets
@@ -206,7 +210,7 @@ function processVttFile(filename, vttOutputFile, language) {
  * @param {String} srtFileName Name and location for the SRT file.
  * @returns Success and location for the VTT and SRT file.
  */
-function createSrt(vttFilename, srtFileName) {
+function createSrtFile(vttFilename, srtFileName) {
   return new Promise((resolve) => {
     let vttContent = fs.readFileSync(vttFilename, "utf8");
 
@@ -218,7 +222,111 @@ function createSrt(vttFilename, srtFileName) {
     ${vttFilename} and ${srtFileName}`);
   });
 }
+/**
+ * This just creates a SRT Array.
+ *
+ * @param {String} srtFileName Location of either a subtitle file.
+ * @returns SRT array to be used for other methods.
+ */
+function createSrtArray(srtFileName) {
+  //Read a .srt file
+  let content = fs.readFileSync(srtFileName, "utf8");
 
+  //Parse the content
+  let options = { verbose: true };
+  let srtArray = subsrt.parse(content, options);
+
+  return srtArray;
+}
+/**
+ * This generates the VTT and SRT files in one shot.
+ *
+ * @param {Array} srtArray SRT Array
+ * @param {String} vttFilename Name and location for the VTT file.
+ * @param {String} srtFileName Name and location for the SRT file.
+ * @returns Locations of the files created.
+ */
+function createVttAndSrtFilesFromArray(srtArray, vttFilename, srtFileName) {
+  //Build the WebVTT content
+  let vttContent = subsrt.build(srtArray, { format: "vtt" });
+  //Write content to .vtt file
+  fs.writeFileSync(vttFilename, vttContent);
+
+  //Build the SRT content
+  let srtContent = subsrt.build(srtArray, { format: "srt" });
+  //Write content to .srt file
+  fs.writeFileSync(srtFileName, srtContent);
+
+  return `VTT and SRT Files have been created at
+    ${vttFilename} and ${srtFileName}`;
+}
+/**
+ * This does the heavy lifting of sending to Azure translate.
+ *
+ * https://github.com/MicrosoftTranslator/Text-Translation-API-V3-NodeJS/blob/master/Translate.js
+ * https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support#text-translation
+ *
+ * @param {Array} srtArray SRT Array to be translated.
+ * @param {Array} languageCodeArray Languages to translate to.
+ * @param {String} originalLanguageCode The original language for the transcript.
+ * @returns Object with just the text and languages.
+ */
+function translateSrtArray(srtArray, languageCodeArray, originalLanguageCode) {
+  const subscriptionKey = process.env.AZURE_TRANSLATOR_SUBSCRIPTION_KEY;
+  const endpoint = "https://api.cognitive.microsofttranslator.com";
+
+  // Add your location, also known as region. The default is global.
+  // This is required if using a Cognitive Services resource.
+  const location = process.env.AZURE_TRANSLATOR_SERVICE_REGION;
+
+  return new Promise((resolve, reject) => {
+    let azureTranslatorTextArray = [];
+
+    srtArray.forEach((obj) => {
+      azureTranslatorTextArray.push({ text: obj.text });
+    });
+
+    axios({
+      baseURL: endpoint,
+      url: "/translate",
+      method: "post",
+      headers: {
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Ocp-Apim-Subscription-Region": location,
+        "Content-type": "application/json",
+        "X-ClientTraceId": uuidv4().toString(),
+      },
+      params: {
+        "api-version": "3.0",
+        from: originalLanguageCode,
+        to: languageCodeArray,
+      },
+      data: azureTranslatorTextArray,
+      responseType: "json",
+    })
+      .then((response) => {
+        // console.log(JSON.stringify(response.data, null, 4));
+        let languageCodeObj = {};
+        languageCodeArray.forEach((languageCode) => {
+          languageCodeObj[languageCode] = [];
+        });
+        let responseArray = response.data;
+        responseArray.forEach((responseObj) => {
+          //this doesn't account for multiple languages at once
+          let translationsArray = responseObj.translations;
+          //there is another array in translations
+          translationsArray.forEach((t) => {
+            languageCodeObj[t.to].push({ text: t.text });
+          });
+        });
+
+        resolve(languageCodeObj);
+      })
+      .catch((e) => {
+        reject(e);
+      });
+  });
+}
 /**
  * This is the main function for this file.
  */
@@ -246,10 +354,41 @@ setupConfig()
   })
   .then((processVttFileData) => {
     console.log(processVttFileData);
-    return createSrt(configData.vttOutputFile, configData.srtOutputFile);
+    return createSrtFile(configData.vttOutputFile, configData.srtOutputFile);
   })
-  .then((createSrtData) => {
-    console.log(createSrtData);
+  .then((createSrtFileData) => {
+    console.log(createSrtFileData);
+    if (config.translate) {
+      let srtArray = createSrtArray(configData.srtOutputFile);
+      let languageCodesArray = Object.keys(config.translate);
+      return translateSrtArray(
+        srtArray,
+        languageCodesArray,
+        configData.language
+      )
+        .then((d) => {
+          languageCodesArray.forEach((languageCode) => {
+            let tempArray = [];
+            let textArray = d[languageCode];
+            let tempSrtArray = srtArray;
+            textArray.forEach((textObj, index) => {
+              let tempObj = tempSrtArray[index];
+              tempObj.text = textObj.text;
+              tempObj.content = textObj.text;
+              tempArray.push(tempObj);
+            });
+            let translationLocations = createVttAndSrtFilesFromArray(
+              tempArray,
+              config.translate[languageCode].vttOutputFile,
+              config.translate[languageCode].srtOutputFile
+            );
+            console.log(translationLocations);
+          });
+        })
+        .catch((e) => {
+          console.log(`Translate Error: ${e}`);
+        });
+    }
   })
   .catch((e) => {
     console.log(`Extract Audio Error: ${e}`);
