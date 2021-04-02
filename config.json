@@ -1,6 +1,7 @@
 {
   "videoFile": "input/yoga_test_video.mp4",
   "audioFile": "output/yoga_test_audio.wav",
-  "outputFile": "output/transcript.vtt",
+  "vttOutputFile": "output/transcript.vtt",
+  "srtOutputFile": "output/transcript.srt",
   "language": "en-US"
 }

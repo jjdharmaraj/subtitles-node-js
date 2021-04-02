@@ -282,6 +282,11 @@ simple-lru-cache@0.0.2:
   resolved "https://registry.yarnpkg.com/simple-lru-cache/-/simple-lru-cache-0.0.2.tgz#d59cc3a193c1a5d0320f84ee732f6e4713e511dd"
   integrity sha1-1ZzDoZPBpdAyD4Tucy9uRxPlEd0=
 
+subsrt@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/subsrt/-/subsrt-1.1.1.tgz#079bc83921feb46e05319a3ff9a13bef08a8d388"
+  integrity sha512-F15pSRRrPYnLjDKohcwkUUGhgHH+0IqpCoznMHMibZI9a2qN3ya/p3Xp/7zFOPvwez9b/qFjwtOnyS7f7d/MNw==
+
 textextensions@^2.5.0:
   version "2.6.0"
   resolved "https://registry.yarnpkg.com/textextensions/-/textextensions-2.6.0.tgz#d7e4ab13fe54e32e08873be40d51b74229b00fc4"

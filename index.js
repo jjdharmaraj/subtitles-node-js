@@ -13,6 +13,8 @@ const subscriptionKey = process.env.AZURE_SPEECH_SUBSCRIPTION_KEY;
 //https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/regions
 const serviceRegion = process.env.AZURE_SPEECH_SERVICE_REGION;
 
+const subsrt = require("subsrt");
+
 /**
  * This sets the config up so that certain parameters are optional.
  *
@@ -25,7 +27,7 @@ function setupConfig() {
   //This is the video you want to use to generate subtitles for.
   let videoFile;
   //These are optional presets
-  let audioFile, outputFile, language;
+  let audioFile, vttOutputFile, srtOutputFile, language;
 
   return new Promise((resolve, reject) => {
     if (!config || !config.videoFile) {
@@ -39,17 +41,22 @@ function setupConfig() {
     } else {
       audioFile = config.audioFile;
     }
-    if (!config.outputFile) {
-      outputFile = "transcript.vtt";
+    if (!config.vttOutputFile) {
+      vttOutputFile = "transcript.vtt";
     } else {
-      outputFile = config.outputFile;
+      vttOutputFile = config.vttOutputFile;
+    }
+    if (!config.srtOutputFile) {
+      srtOutputFile = "transcript.srt";
+    } else {
+      srtOutputFile = config.srtOutputFile;
     }
     if (!config.language) {
       language = "en-US";
     } else {
       language = config.language;
     }
-    resolve({ videoFile, audioFile, outputFile, language });
+    resolve({ videoFile, audioFile, vttOutputFile, srtOutputFile, language });
   });
 }
 /**
@@ -122,13 +129,13 @@ function parseTime(nano) {
  * This handles setting up Azure, sending to Azure, and writing a VTT file.
  *
  * @param {String} filename The audio file to use for Azure AI.
- * @param {String} outputFile Name and location for the VTT file.
+ * @param {String} vttOutputFile Name and location for the VTT file.
  * @param {String} language The language code for Azure to use.
  * @returns Promise.
  */
-function processFile(filename, outputFile, language) {
+function processVttFile(filename, vttOutputFile, language) {
   return new Promise((resolve) => {
-    const outputStream = fs.createWriteStream(outputFile);
+    const outputStream = fs.createWriteStream(vttOutputFile);
     outputStream.once("open", () => {
       outputStream.write(`WEBVTT\r\n\r\n`);
 
@@ -190,6 +197,27 @@ function processFile(filename, outputFile, language) {
     });
   });
 }
+/**
+ * This converts the VTT to SRT.
+ *
+ * https://github.com/papnkukn/subsrt
+ *
+ * @param {String} vttFilename Name and location for the VTT file.
+ * @param {String} srtFileName Name and location for the SRT file.
+ * @returns Success and location for the VTT and SRT file.
+ */
+function createSrt(vttFilename, srtFileName) {
+  return new Promise((resolve) => {
+    let vttContent = fs.readFileSync(vttFilename, "utf8");
+
+    let srt = subsrt.convert(vttContent, { format: "srt" });
+
+    fs.writeFileSync(srtFileName, srt);
+
+    resolve(`VTT and SRT Files have been created at
+    ${vttFilename} and ${srtFileName}`);
+  });
+}
 
 /**
  * This is the main function for this file.
@@ -210,14 +238,18 @@ setupConfig()
 
   .then(() => {
     console.log(`Extract Audio Done`);
-    return processFile(
+    return processVttFile(
       configData.audioFile,
-      configData.outputFile,
+      configData.vttOutputFile,
       configData.language
     );
   })
-  .then((processFileData) => {
-    console.log(processFileData);
+  .then((processVttFileData) => {
+    console.log(processVttFileData);
+    return createSrt(configData.vttOutputFile, configData.srtOutputFile);
+  })
+  .then((createSrtData) => {
+    console.log(createSrtData);
   })
   .catch((e) => {
     console.log(`Extract Audio Error: ${e}`);

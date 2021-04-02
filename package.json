@@ -12,7 +12,8 @@
   "dependencies": {
     "ffmpeg-extract-audio": "^1.0.2",
     "microsoft-cognitiveservices-speech-sdk": "^1.16.0",
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "subsrt": "^1.1.1"
   },
   "devDependencies": {}
 }
