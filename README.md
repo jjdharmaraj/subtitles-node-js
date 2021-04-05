@@ -23,8 +23,8 @@ You also have an optional section to generate translated subtitles as well. It f
 ## Useful Links
 
 1. https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/overview
-2. https://ffmpeg.org/download.html#build-windows
-3. https://www.gyan.dev/ffmpeg/builds/
-4. https://github.com/papnkukn/subsrt
-5. https://docs.microsoft.com/en-us/azure/cognitive-services/translator/quickstart-translator?tabs=nodejs#translate-text
-6. https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support#text-translation
+2. https://docs.microsoft.com/en-us/azure/cognitive-services/translator/quickstart-translator?tabs=nodejs#translate-text
+3. https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support#text-translation
+4. https://ffmpeg.org/download.html#build-windows
+5. https://www.gyan.dev/ffmpeg/builds/
+6. https://github.com/papnkukn/subsrt

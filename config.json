@@ -1,17 +1,17 @@
 {
-  "videoFile": "input/yoga_test_video.mp4",
-  "audioFile": "output/yoga_test_audio.wav",
-  "vttOutputFile": "output/transcript.vtt",
-  "srtOutputFile": "output/transcript.srt",
+  "videoFile": "input/shakespeare_in_the_gym.mp4",
+  "audioFile": "output/shakespeare_in_the_gym_audio.wav",
+  "vttOutputFile": "output/shakespeare_in_the_gym_transcript.vtt",
+  "srtOutputFile": "output/shakespeare_in_the_gym_transcript.srt",
   "language": "en-US",
   "translate": {
     "es": {
-      "vttOutputFile": "output/transcript_es.vtt",
-      "srtOutputFile": "output/transcript_es.srt"
+      "vttOutputFile": "output/shakespeare_in_the_gym_transcript_es.vtt",
+      "srtOutputFile": "output/shakespeare_in_the_gym_transcript_es.srt"
     },
     "it": {
-      "vttOutputFile": "output/transcript_it.vtt",
-      "srtOutputFile": "output/transcript_it.srt"
+      "vttOutputFile": "output/shakespeare_in_the_gym_transcript_it.vtt",
+      "srtOutputFile": "output/shakespeare_in_the_gym_transcript_it.srt"
     }
   }
 }
