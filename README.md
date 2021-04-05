@@ -28,3 +28,7 @@ You also have an optional section to generate translated subtitles as well. It f
 4. https://ffmpeg.org/download.html#build-windows
 5. https://www.gyan.dev/ffmpeg/builds/
 6. https://github.com/papnkukn/subsrt
+7. https://www.w3.org/TR/webvtt1/
+8. https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
+9. https://www.matroska.org/technical/subtitles.html#srt-subtitles
+10. https://en.wikipedia.org/wiki/SubRip

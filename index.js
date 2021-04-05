@@ -107,119 +107,79 @@ function createRecognizer(audiofilename, audioLanguage) {
 }
 
 /**
- * This parses the time from Azure into something more usable.
+ * Converts nanoseconds to milliseconds.
  *
- * https://www.w3.org/TR/webvtt1/
- * https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API
- *
- * @param {Number} nano Time sent from Azure
- * @returns String to be used for the time in the file.
+ * @param {Number} nano Nano seconds.
+ * @returns Milliseconds Number.
  */
-function parseTime(nano) {
-  var hour = Math.floor(nano / 36000000000);
-  var temp = nano % 36000000000;
-  var minute = Math.floor(temp / 600000000);
-  var temp2 = temp % 600000000;
-  var second = Math.floor(temp2 / 10000000);
-  var mil = temp2 % 10000000;
-  hour = hour.toString();
-  minute = minute.toString();
-  second = second.toString();
-  mil = mil.toString().slice(0, 3); //cuts off insignificant digits
-  return `${hour}:${minute}:${second}.${mil}`;
+function convertTime(nano) {
+  return nano / 1000;
 }
-
 /**
- * This handles setting up Azure, sending to Azure, and writing a VTT file.
+ * This handles setting up Azure, sending to Azure, and writing a srt Array.
  *
- * @param {String} filename The audio file to use for Azure AI.
- * @param {String} vttOutputFile Name and location for the VTT file.
+ * @param {String} fileName The audio file to use for Azure AI.
  * @param {String} language The language code for Azure to use.
  * @returns Promise.
  */
-function processVttFile(filename, vttOutputFile, language) {
-  return new Promise((resolve) => {
-    const outputStream = fs.createWriteStream(vttOutputFile);
-    outputStream.once("open", () => {
-      outputStream.write(`WEBVTT\r\n\r\n`);
+function processSrtArray(fileName, language) {
+  let srtArray = [];
+  // let index = 1;
+  return new Promise((resolve, reject) => {
+    let recognizer = createRecognizer(fileName, language);
 
-      let recognizer = createRecognizer(filename, language);
+    recognizer.recognized = (s, e) => {
+      if (e.result.reason === sdk.ResultReason.NoMatch) {
+        const noMatchDetail = sdk.NoMatchDetails.fromResult(e.result);
+        console.log(
+          "\r\n(recognized)  Reason: " +
+            sdk.ResultReason[e.result.reason] +
+            " | NoMatchReason: " +
+            sdk.NoMatchReason[noMatchDetail.reason]
+        );
+      } else {
+        console.log(
+          `\r\n(recognized)  Reason: ${
+            sdk.ResultReason[e.result.reason]
+          } | Duration: ${e.result.duration} | Offset: ${e.result.offset}`
+        );
+        srtArray.push({
+          // type: "caption",
+          // index,
+          start: convertTime(e.result.offset),
+          end: convertTime(e.result.offset + e.result.duration),
+          text: e.result.text,
+        });
+      }
+    };
 
-      recognizer.recognized = (s, e) => {
-        if (e.result.reason === sdk.ResultReason.NoMatch) {
-          const noMatchDetail = sdk.NoMatchDetails.fromResult(e.result);
-          console.log(
-            "\r\n(recognized)  Reason: " +
-              sdk.ResultReason[e.result.reason] +
-              " | NoMatchReason: " +
-              sdk.NoMatchReason[noMatchDetail.reason]
-          );
-        } else {
-          console.log(
-            `\r\n(recognized)  Reason: ${
-              sdk.ResultReason[e.result.reason]
-            } | Duration: ${e.result.duration} | Offset: ${e.result.offset}`
-          );
+    recognizer.canceled = (s, e) => {
+      let str = "(cancel) Reason: " + sdk.CancellationReason[e.reason];
+      if (e.reason === sdk.CancellationReason.Error) {
+        str += ": " + e.errorDetails;
+      }
 
-          outputStream.write(
-            `${parseTime(e.result.offset)} --> ${parseTime(
-              e.result.offset + e.result.duration
-            )}\r\n`
-          );
-          outputStream.write(`${e.result.text}\r\n\r\n`);
-        }
-      };
+      console.log(str);
+    };
 
-      recognizer.canceled = (s, e) => {
-        let str = "(cancel) Reason: " + sdk.CancellationReason[e.reason];
-        if (e.reason === sdk.CancellationReason.Error) {
-          str += ": " + e.errorDetails;
-        }
+    recognizer.speechEndDetected = (s, e) => {
+      console.log(`(speechEndDetected) SessionId: ${e.sessionId}`);
+      recognizer.close();
+      recognizer = undefined;
+      resolve(srtArray);
+    };
 
-        console.log(str);
-      };
-
-      recognizer.speechEndDetected = (s, e) => {
-        console.log(`(speechEndDetected) SessionId: ${e.sessionId}`);
-        outputStream.close();
+    recognizer.startContinuousRecognitionAsync(
+      () => {
+        console.log("Recognition started");
+      },
+      (err) => {
+        console.trace("err - " + err);
         recognizer.close();
         recognizer = undefined;
-        resolve("Process file done.");
-      };
-
-      recognizer.startContinuousRecognitionAsync(
-        () => {
-          console.log("Recognition started");
-        },
-        (err) => {
-          console.trace("err - " + err);
-          outputStream.close();
-          recognizer.close();
-          recognizer = undefined;
-        }
-      );
-    });
-  });
-}
-/**
- * This converts the VTT to SRT.
- *
- * https://github.com/papnkukn/subsrt
- *
- * @param {String} vttFilename Name and location for the VTT file.
- * @param {String} srtFileName Name and location for the SRT file.
- * @returns Success and location for the VTT and SRT file.
- */
-function createSrtFile(vttFilename, srtFileName) {
-  return new Promise((resolve) => {
-    let vttContent = fs.readFileSync(vttFilename, "utf8");
-
-    let srt = subsrt.convert(vttContent, { format: "srt" });
-
-    fs.writeFileSync(srtFileName, srt);
-
-    resolve(`VTT and SRT Files have been created at
-    ${vttFilename} and ${srtFileName}`);
+        reject(err);
+      }
+    );
   });
 }
 /**
@@ -240,6 +200,8 @@ function createSrtArray(srtFileName) {
 }
 /**
  * This generates the VTT and SRT files in one shot.
+ *
+ * https://github.com/papnkukn/subsrt
  *
  * @param {Array} srtArray SRT Array
  * @param {String} vttFilename Name and location for the VTT file.
@@ -330,6 +292,7 @@ function translateSrtArray(srtArray, languageCodeArray, originalLanguageCode) {
 /**
  * This is the main function for this file.
  */
+
 let configData;
 
 setupConfig()
@@ -343,21 +306,20 @@ setupConfig()
       },
     });
   })
-
   .then(() => {
     console.log(`Extract Audio Done`);
-    return processVttFile(
-      configData.audioFile,
+    return processSrtArray(configData.audioFile, configData.language);
+  })
+  .then((processSrtArrayData) => {
+    console.log(`Azure Speech to Text is done`);
+    return createVttAndSrtFilesFromArray(
+      processSrtArrayData,
       configData.vttOutputFile,
-      configData.language
+      configData.srtOutputFile
     );
   })
-  .then((processVttFileData) => {
-    console.log(processVttFileData);
-    return createSrtFile(configData.vttOutputFile, configData.srtOutputFile);
-  })
-  .then((createSrtFileData) => {
-    console.log(createSrtFileData);
+  .then((data) => {
+    console.log(data);
     if (config.translate) {
       let srtArray = createSrtArray(configData.srtOutputFile);
       let languageCodesArray = Object.keys(config.translate);
@@ -391,5 +353,5 @@ setupConfig()
     }
   })
   .catch((e) => {
-    console.log(`Extract Audio Error: ${e}`);
+    console.log(`Error: ${e}`);
   });
